@@ -1,0 +1,63 @@
+---
+title: "Diamond_Project"
+author: "Ali Valiyev"
+date: "2024-03-19"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+```{r}
+#Ilk Once "tidyverse" ve "dplyr" paketlerimizi kuruyoruz 
+library(tidyverse)
+library(dplyr)
+clone_diamonds = ggplot2::diamonds
+```
+
+```{r}
+#Verisetinden Bizim kullanabilecegimiz kismi filter fonksiyonu ile filtreliyoruz.
+sub_diamonds = filter(clone_diamonds, price>1000 & price<=5000)
+sub_diamonds
+```
+```{r}
+#Geom_point fonksiyonunu kullanarak karat ve fiyat arasındaki dagılımın görsel halini görebiliyoruz. Bu görsel dagılımda en uygun karatın 1 seviyelerinden yukarıda olduğu anlaşılıyor. Fiyat Performans ürünü olarak 3000 dolar üzeri olan ve karatı 1-den yüksek olan ürünler pırlantalar arasında en iyi seçime benziyor.
+Best_diamond = ggplot(data=sub_diamonds) +
+  geom_point(mapping = aes(price,carat,color=price))
+Best_diamond
+```
+
+```{r}
+#3000 dolar uzeri ve karati birden yuksek olan pirlantalari siralayalim.
+sub_diamonds = filter(sub_diamonds, price >= 3000 & carat>1)
+sub_diamonds
+```
+```{r}
+#Geom_boxplot fonksiyonunu kullanarak karat ve fiyat arasindaki iliskinin gorsel halini gorebiliyoruz. Bu gorsel dagilimda en uygun pirlantanin "Ideal" kesim pirlantalar arasinda oldugu anlasiliyor.
+Best_diamond = ggplot(data=sub_diamonds) +
+  geom_boxplot(mapping = aes(cut,price))
+Best_diamond
+```
+
+```{r}
+#"Ideal" kesim pirlantalari filtreliyelim
+sub_diamonds = filter(sub_diamonds,cut=="Ideal")
+sub_diamonds
+```
+
+```{r}
+#Geom_boxplot fonksiyonunu kullanarak son 2 degisken olan clarity ve color arasindaki iliskinin görsel halini görebiliyoruz. Bu görsel dagılımda en uygun pırlantanın "H" rengine uygun olan pırlantalar arasında olduğu anlaşılıyor.
+Best_diamond = ggplot(data=sub_diamonds) +
+  geom_boxplot(mapping = aes(clarity,color))
+Best_diamond
+```
+```{r}
+sub_diamonds = filter(sub_diamonds,color=="H" & clarity=="VVS2")
+sub_diamonds
+```
+Buldugumuz pirlantaya satinalabilecegimiz en uygun pirlanta diyebiliriz
