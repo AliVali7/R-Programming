@@ -1,0 +1,212 @@
+---
+title: "Data Missing Imputation"
+author: "Ali Valiyev"
+date: "2024-03-22"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+```{r}
+#ilk olarak gerekli paketleri ve mice paketini sistemimize indirmeli ve kurmaliyiz
+if(!require(mice)){
+  install.packages("mice"); library(mice)} 
+library(dplyr)
+library(tidyverse)
+```
+
+```{r}
+#Üzerinde işlemler yapacağımız Verisetine kayıp değerler ekleyelim
+library(dplyr)
+clone_diamonds = ggplot2::diamonds
+first_diamonds = head(clone_diamonds, 1000 )
+
+last_diamonds = tail(clone_diamonds, 20000)
+
+first_diamonds$price[first_diamonds$price == 405] <- NA
+first_diamonds$carat[first_diamonds$carat == 1] <- NA
+first_diamonds$cut[first_diamonds$cut == "Ideal"] <- NA
+first_diamonds$color[first_diamonds$color == "L"] <- NA
+first_diamonds$clarity[first_diamonds$clarity == "SI2"] <- NA
+
+subData = full_join(first_diamonds, last_diamonds)
+```
+
+```{r}
+#md.pattern fonksiyonuyla patern-e bakalım
+md.pattern(subData)
+```
+
+```{r}
+#Kayıp değerlere bakalım
+View(subData)
+head(is.na(subData),10)
+```
+is.na() fonksiyonu sonuç olarak bize TRUE ve False-lardan ibaret bir data frame göstericektir. TRUE - Kayıp değer var, 
+FALSE - kayıp değer yoktur.
+
+```{r}
+#Kayip gozlem numarasini bulma:
+head(which(is.na(subData)),100)
+```
+
+```{r}
+#Kayip gozlem satirlarini saptama
+head(unique(unlist(lapply(subData, function(price) which(is.na(price))))),100)
+```
+
+```{r}
+#Kayip gozlem oranini bulma:
+NA_Diamonds = function(subData) {sum(is.na(subData))/length(subData)*100}
+head(apply(subData,1,NA_Diamonds),100)
+```
+
+```{r}
+#Kayip degerlerin ortalama ile tamamlama:
+new_diamonds <- subData
+new_diamonds$price.x[is.na(subData$price)] <- mean(subData$price, na.rm = T)
+head(new_diamonds,10)
+```
+
+```{r}
+#imputeTS ile kayip deger Tamamlayalim
+library(imputeTS)
+new_diamonds = na.mean(subData, option = "mean")
+head(new_diamonds,10)
+```
+```{r}
+#imputeTS ile kayip deger Tamamlayalim
+new_diamonds <- na_mean(subData, option = "median")
+head(new_diamonds,10)
+```
+
+```{r}
+#imputeTS ile kayip deger Tamamlayalim
+new_diamonds <- na_mean(subData, option = "mode")
+head(new_diamonds,10)
+```
+```{r}
+#Hmisc ile kayip deger Tamamlayalim
+library(Hmisc)
+head(impute(subData$price, mean),100)
+```
+
+```{r}
+#Hmisc ile kayip deger Tamamlayalim
+head(impute(clone_diamonds$price, median),100)
+```
+
+```{r}
+NumOfNA = which(is.na(subData))
+length(NumOfNA)
+```
+Bu işlem sayesinde kaç tane kayıp gözlemin olduğuna bakabiliriz. 508 Kayıp gözlemimiz var.
+
+```{r}
+newData = na.omit(subData)
+head(newData,10)
+```
+na.omit() fonksiyonu NA kayıp gözlemlerini ortadan kaldırmış oluyoruz. naomit() işlemi Kayıp değerin olduğu sadece bir değişkenin değerini değil, Kayıp değerin olduğu tüm satırı kaldırmış oluyor. Bu yöntem yeteri kadar işlevsel bir yöntem olduğu söylenemez
+
+```{r}
+nrow(subData)
+nrow(newData)
+```
+yeni nesnemizde 556 kadar veri kaldırılmış durumdadır. Kaldrırılmış verilerin sayına bakarsak bu yöntemin yeteri kadar işlevsel bir yöntem olmadığını görüyoruz. Eğer aynı satırın çok fazla sayıda değişkenleri Kayıp değere sahipse na.omit() fonksiyonunu kullanarak bu satırı Kaldıramamız na.omit() fonksiyonu için uygun bir kullanım noktası olmuş olur. Şu an ki veriseti için başka yöntemler deneyeceğiz. 
+
+```{r}
+#Kayip gozlem oranlarina ve Pattern-e bakalim:
+library(VIM)
+fig = aggr(subData , col=c("orange" , "red") , labels = names(subData),
+            numbers = TRUE , sortVars = TRUE, cex.axis = 0.6 , 
+            ylab = c("Histogram of Missing Values" , "Pattern"))
+```
+
+Mice Paketini kullanarak kayip gozlemleri dolduralim
+mice paketini nasil kullanavagimizi ogrenelim
+mice (
+
+data - bu kisimi bir veriseti ilave ediyoruz
+
+m - bu kısımda yapılacak olan imputasyonlarin sayini belirtiyoruz
+
+method - imputasyon yaparkan kullacağımız methodların isimlerini belirtiyoruz. Birden çok method ismi yazarsak her bir degiskene uygun methodlari kullanicaktir.
+
+defaultMethod - method = null olduğunda bu kısım çalışıyor. 4 deger veriyoruz. 1.- numeric data icin, 2. - 2 seviyeli factorlere uygulanan method olucak, 3. - üçden daha fazla faktor seviyeli ve sıralı olmayanlar için 4.- ikiden fazla faktör seviyeli ve sıralı olan değişkenler için ("any" , "numeric" , "Unordered" "Ordered")
+
+maxit -  imputation zamani kac kere iterasyon yapilacagini belirtiyoruz
+
+
+Methodlar:
+pmm - Predictive mean matching, her türlü datada kullanıla bilir
+midastouch - Weighted predictive mean matching, her türlü veri türünde kullanıla bilir
+rf - Random forest Imputation, her türlü veri türünde kullanıla bilir
+mean - Unconditional mean imputation. numeric tipdeki veri türünde kullanıla bilir
+
+
+```{r}
+#degiskenimizin tiplerine bakalim
+#ordered:
+head(subData$color,10)
+head(subData$clarity,10)
+head(subData$cut,10)
+
+#numeric
+head(subData$carat,10)
+head(subData$depth,10)
+head(subData$table,10)
+head(subData$x,10)
+head(subData$y,10)
+head(subData$z,10)
+```
+
+```{r}
+ImpData = mice(data = subData, m = 3 , maxit = 3,
+                   method = NULL, defaultMethod = c("norm.nob" , "logreg", "rf" ,  "pmm"))
+```
+mice fonksiyonu çalışırken 3 output ortaya çıkmış oluyor. Bu output-lar 1. ımputasyonları daha sonra iımputasyonları ve en sonda da değişkenleri gösteriyor. 1. İterasyonda 1. İmputasyon ve hangi değişkenler için yapıldığı gösteriliyor. daha sonra ikinci ve üçüncüsü imputasyonları yapıyor. 1. İterasyonu bitirdikden sonra 2. İmputasyona geçiyor. 3. İterasyon ve 3.İmputasyona vardığında sonlanıcaktır. Çünkü biz maxit = 3 ve m = 3 olarak belirtik. Tüm İşlemler sonuçlandıkdan sonra da sonuçları ImpData nesnesine atıyor.
+
+```{r}
+summary(ImpData)
+```
+Imputation methods -  Imputation işlemi yaparken kullanılan metodları gösteriyor.
+
+```{r}
+names(ImpData)
+```
+
+
+```{r}
+ImpData$m
+```
+Yani İmputasyon sayısı 3-e eşittir
+
+
+```{r}
+head(ImpData$imp$cut,10)
+head(ImpData$imp$clarity,10)
+head(ImpData$imp$color,10)
+head(ImpData$imp$depth,10)
+head(ImpData$imp$table,10)
+head(ImpData$imp$price,10)
+```
+İmputasyon işlemlerinin çıkardığı sonuçları inceleyelim.
+
+```{r}
+head(ImpData$imp$cut,10)
+```
+Mesela cut değişkenine bakalım. İnceleme sonucunda bazı değerlerin 1. imputasyon zamanı verilen değer daha sonraki imputasyonlarda yerini başka bir değere bırakmış durumdadır. Diğer değişkenlerde de böyle bir durum yaşanabilir.
+
+Kayıp değerlere değer atamak için complete fonksiyonunu kullanıyoruz 
+complete(
+  hangi verisetini kullanacağımızı belirtiyoruz
+  hangi imputasyon işleminin sonuçlarını kullanacağımızı belirtiyoruz.
+) 
+```{r}
+newData = complete(ImpData, 3)
+```
+
+```{r}
+View(newData)
+```
+Artık Kayıp değerlere değer atanmıştır
