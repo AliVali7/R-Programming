@@ -1,0 +1,165 @@
+---
+title: "Aykırı Değer"
+author: "Ali Valiyev"
+date: "2024-04-16"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+Aykırı değer tespiti
+Box-Plot Yöntemi - 
+İlk olarak "Rstatix" Paketini indiriyoruz
+```{r}
+library(dplyr)
+library(tidyverse)
+library(rstatix)
+```
+```{r}
+library(dplyr)
+Dataset = ggplot2::diamonds
+```
+
+identify_outliers fonksiyonunu inceleyelim
+```{r}
+?identify_outliers
+```
+
+Box-Plot yöntemınde 1. ve 3. çeyreklik değerler hesaba katılıyor.
+Fazla olan değerlerin aykırı değer olup olmadığını kontrol etmek için Q3+ 1.5*IQR
+IQR=Q3-Q1
+```{r}
+out = identify_outliers(Dataset["price"])
+```
+is.outlier - Aykırı değer olup olmadığını gösteriyor
+is.extreme - Extreme aykırı değer olup olmadığını gösteriyor
+```{r}
+names(out)
+```
+
+minimun outlier değer:
+```{r}
+min(out$price)
+```
+
+minimun outlier değer:
+```{r}
+max(out$price)
+```
+
+yalnizca Extreme aykırı değerleri çıkarmak için:
+```{r}
+indexes = which(out$is.extreme == TRUE)
+out[indexes, "price"]
+```
+
+extreme değerlerin sayısını bulma:
+```{r}
+extreme = out[indexes, "price"]
+length(extreme)
+```
+
+outlier değerlerin sayısını bulma:
+```{r}
+nrow(out)
+```
+```{r}
+#Box-Plot grafiği
+boxplot(Dataset["price"], col="gray")
+```
+
+```{r}
+#Aynı veride 2 farklı box-plot grafiği
+opar = par(mfrow = c(1,2))
+boxplot(Dataset["price"], col = "gray" , range = 3)
+boxplot(Dataset["price"], col = "gray" , range = 3)
+par(opar)
+```
+
+```{r}
+#Aykırı değer listeleme:
+bpx = boxplot(Dataset["price"], col="gray")
+head(bpx$out,nL=10)
+```
+
+```{r}
+#Aykırı değeri box-plot state ile bulma
+bpstx = boxplot.stats(Dataset$price)
+head(bpstx$stats)
+head(bpstx$n)
+head(bpstx$conf)
+head(bpstx$out,100)
+```
+
+```{r}
+#Aykırı değerden temizlenmiş veri
+adx = bpstx$out
+cx = Dataset$price[-which(Dataset$price %in% adx)]
+head(cx,100)
+```
+```{r}
+#Aykırı değerden temizlenmiş veri grafiği
+bpx1 = boxplot(cx, col="gray")
+head(bpx1$out,100)
+```
+
+"Z", "T" ve ve "ChiSquare" Skorlarına göre aykırı değer kontrolü:
+Böyle bir işlem için scores fonskıyonunu kullanıyoruz
+Type - Aykırı değerin skorunun hangi tipde olacağını belirtiyoruz
+prop - Hangi kısımdan sonrası aykırı değer olarak hesaplanıcak
+```{r}
+library(outliers)
+head(scores(Dataset$price, type = "z" , prob = 0.6 ),100)
+```
+TRUE-lar Aykırı değerleri bize bildiriyor.
+
+
+Değeri görmek için:
+```{r}
+out = scores(Dataset$price, type = "z" , prob = 0.6 )
+value = which(out == TRUE)
+head(Dataset$price[value])
+```
+en küçük değer olarak 326 bulunmuş. Bu yüzden de 326 bizim minimum Aykırı değerimizdir.
+Histogram olarak inceleme
+```{r}
+hist.default(Dataset$price)
+```
+ 326-dan sonra gelen değerler aykırı değer olarak sayılmış
+ 
+```{r}
+#Altlı Üstlü Histogram Grafiği 
+out = scores(Dataset$price, type = "z" , prob = 0.6 )
+par(mfrow = c(2,1))
+hist(Dataset$price)
+hist(Dataset$price[ which(out == FALSE)])
+```
+
+T dağılıma göre :
+
+```{r}
+head(scores(Dataset$price, type = "t" , prob = 0.6 ),100)
+```
+
+Değeri görmek için:
+```{r}
+out = scores(Dataset$price, type = "t" , prob = 0.6 )
+value = which(out == TRUE)
+head(Dataset$price[value])
+```
+
+Chi Square dağılına göre :
+```{r}
+head(scores(Dataset$price, type = "chisq" , prob = 0.6 ),100)
+```
+
+
+Değeri görmek için:
+```{r}
+out = scores(Dataset$price, type = "chisq" , prob = 0.6 )
+value = which(out == TRUE)
+head(Dataset$price[value])
+```
